@@ -10,6 +10,7 @@ import {
   Settings,
   LayoutDashboard,
   Building2,
+  FileSpreadsheet,
 } from "lucide-react";
 
 const MENU = [
@@ -21,6 +22,7 @@ const MENU = [
   { label: "Mutasi", href: "/mutasi", icon: History },
   { label: "Kegiatan", href: "/kegiatan", icon: Calendar },
   { label: "Inventaris", href: "/inventaris", icon: Package },
+  { label: "Laporan & Export", href: "/laporan", icon: FileSpreadsheet },
   { label: "Pengaturan", href: "/pengaturan", icon: Settings },
 ];
 
@@ -54,3 +56,4 @@ export function AdminSidebar() {
     </aside>
   );
 }
+
