@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Plus, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, Briefcase } from "lucide-react";
 import { deleteWarga } from "@/lib/actions/warga";
 
 export default async function WargaPage() {
@@ -11,14 +11,19 @@ export default async function WargaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Data Warga</h1>
           <p className="text-muted-foreground text-sm mt-1">Daftar semua warga RT terdaftar.</p>
         </div>
-        <Link href="/warga/tambah" className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90">
-          <Plus className="w-4 h-4" /> Tambah Warga
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/warga/pekerjaan" className="border bg-card hover:bg-accent text-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-primary" /> Kelola Pekerjaan
+          </Link>
+          <Link href="/warga/tambah" className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90">
+            <Plus className="w-4 h-4" /> Tambah Warga
+          </Link>
+        </div>
       </div>
 
       <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
@@ -81,3 +86,4 @@ export default async function WargaPage() {
     </div>
   );
 }
+
