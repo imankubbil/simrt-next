@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Berulang } from "@prisma/client";
 
 export async function createJenisKegiatan(formData: FormData) {
+  await requireAdmin();
   const nama = formData.get("nama") as string;
   const warna = (formData.get("warna") as string) || "#3498db";
 
@@ -19,6 +21,7 @@ export async function createJenisKegiatan(formData: FormData) {
 }
 
 export async function createKegiatan(formData: FormData) {
+  const session = await requireAdmin();
   const judul = formData.get("judul") as string;
   const jenisId = formData.get("jenisId") as string;
   const deskripsi = (formData.get("deskripsi") as string) || null;
@@ -32,9 +35,6 @@ export async function createKegiatan(formData: FormData) {
     throw new Error("Judul, jenis kegiatan, dan tanggal mulai wajib diisi.");
   }
 
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-  if (!admin) throw new Error("User Admin tidak ditemukan.");
-
   await prisma.kegiatan.create({
     data: {
       judul,
@@ -45,7 +45,7 @@ export async function createKegiatan(formData: FormData) {
       lokasi,
       berulang,
       catatanHasil,
-      createdById: admin.id,
+      createdById: session.user.id,
     },
   });
 
@@ -54,6 +54,7 @@ export async function createKegiatan(formData: FormData) {
 }
 
 export async function deleteKegiatan(id: string) {
+  await requireAdmin();
   await prisma.kegiatan.delete({ where: { id } });
   revalidatePath("/kegiatan");
 }

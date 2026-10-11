@@ -1,11 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PeriodeIuran } from "@prisma/client";
+import { iuranSchema } from "@/lib/validators/warga";
 
 export async function createJenisIuran(formData: FormData) {
+  await requireAdmin();
   const nama = formData.get("nama") as string;
   const nominal = parseFloat(formData.get("nominal") as string);
   const periode = (formData.get("periode") || "BULANAN") as PeriodeIuran;
@@ -24,20 +27,19 @@ export async function createJenisIuran(formData: FormData) {
 }
 
 export async function catatPembayaranIuran(formData: FormData) {
-  const wargaId = formData.get("wargaId") as string;
-  const jenisIuranId = formData.get("jenisIuranId") as string;
-  const bulan = parseInt(formData.get("bulan") as string);
-  const tahun = parseInt(formData.get("tahun") as string);
-  const nominalBayar = parseFloat(formData.get("nominalBayar") as string);
-  const tanggalBayarStr = formData.get("tanggalBayar") as string;
-  const keterangan = (formData.get("keterangan") as string) || null;
+  const session = await requireAdmin();
+  const parsed = iuranSchema.safeParse({
+    wargaId: formData.get("wargaId")?.toString(),
+    jenisIuranId: formData.get("jenisIuranId")?.toString(),
+    bulan: formData.get("bulan")?.toString(),
+    tahun: formData.get("tahun")?.toString(),
+    nominalBayar: formData.get("nominalBayar")?.toString(),
+    tanggalBayar: formData.get("tanggalBayar")?.toString(),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data pembayaran tidak valid.");
 
-  if (!wargaId || !jenisIuranId || !bulan || !tahun || isNaN(nominalBayar) || !tanggalBayarStr) {
-    throw new Error("Data pembayaran tidak lengkap.");
-  }
-
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-  if (!admin) throw new Error("User Admin tidak ditemukan.");
+  const { wargaId, jenisIuranId, bulan, tahun, nominalBayar, tanggalBayar: tanggalBayarStr } = parsed.data;
+  const keterangan = formData.get("keterangan")?.toString() || null;
 
   const existing = await prisma.pembayaranIuran.findUnique({
     where: {
@@ -58,7 +60,7 @@ export async function catatPembayaranIuran(formData: FormData) {
       nominalBayar,
       tanggalBayar: new Date(tanggalBayarStr),
       keterangan,
-      createdById: admin.id,
+      createdById: session.user.id,
     },
   });
 
@@ -67,6 +69,7 @@ export async function catatPembayaranIuran(formData: FormData) {
 }
 
 export async function deletePembayaranIuran(id: string) {
+  await requireAdmin();
   await prisma.pembayaranIuran.delete({ where: { id } });
   revalidatePath("/iuran");
 }

@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { HubunganKeluarga } from "@prisma/client";
 
 export async function createKartuKeluarga(formData: FormData) {
+  await requireAdmin();
   const nomorKK = formData.get("nomorKK") as string;
   const alamat = formData.get("alamat") as string;
   const rt = (formData.get("rt") as string) || null;
@@ -47,6 +49,7 @@ export async function createKartuKeluarga(formData: FormData) {
 }
 
 export async function updateKartuKeluarga(id: string, formData: FormData) {
+  await requireAdmin();
   const nomorKK = formData.get("nomorKK") as string;
   const alamat = formData.get("alamat") as string;
   const rt = (formData.get("rt") as string) || null;
@@ -67,6 +70,7 @@ export async function updateKartuKeluarga(id: string, formData: FormData) {
 }
 
 export async function deleteKartuKeluarga(id: string) {
+  await requireAdmin();
   await prisma.anggotaKeluarga.deleteMany({ where: { kartuKeluargaId: id } });
   await prisma.kartuKeluarga.delete({ where: { id } });
 
@@ -75,6 +79,7 @@ export async function deleteKartuKeluarga(id: string) {
 }
 
 export async function addAnggotaKeluarga(formData: FormData) {
+  await requireAdmin();
   const kartuKeluargaId = formData.get("kartuKeluargaId") as string;
   const wargaId = formData.get("wargaId") as string;
   const hubungan = formData.get("hubungan") as HubunganKeluarga;
@@ -94,6 +99,7 @@ export async function addAnggotaKeluarga(formData: FormData) {
 }
 
 export async function removeAnggotaKeluarga(anggotaId: string, kartuKeluargaId: string) {
+  await requireAdmin();
   await prisma.anggotaKeluarga.delete({ where: { id: anggotaId } });
   revalidatePath(`/kartu-keluarga/${kartuKeluargaId}`);
 }

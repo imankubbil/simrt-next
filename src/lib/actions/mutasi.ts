@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { JenisMutasi } from "@prisma/client";
 
 export async function createMutasi(formData: FormData) {
+  const session = await requireAdmin();
   const wargaId = formData.get("wargaId") as string;
   const jenisMutasi = formData.get("jenisMutasi") as JenisMutasi;
   const tanggalStr = formData.get("tanggal") as string;
@@ -19,32 +21,31 @@ export async function createMutasi(formData: FormData) {
     throw new Error("Warga, jenis mutasi, dan tanggal wajib diisi.");
   }
 
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-  if (!admin) throw new Error("User Admin tidak ditemukan.");
-
-  await prisma.mutasiPenduduk.create({
-    data: {
-      wargaId,
-      jenisMutasi,
-      tanggal: new Date(tanggalStr),
-      keterangan,
-      alamatTujuan,
-      alamatAsal,
-      tempatMeninggal,
-      penyebab,
-      createdById: admin.id,
-    },
-  });
-
-  if (jenisMutasi === "MENINGGAL" || jenisMutasi === "PINDAH_KELUAR") {
-    await prisma.warga.update({
-      where: { id: wargaId },
+  await prisma.$transaction(async (tx) => {
+    await tx.mutasiPenduduk.create({
       data: {
-        statusAktif: false,
-        kategoriTidakAktif: jenisMutasi === "MENINGGAL" ? "Meninggal" : "Pindah Keluar",
+        wargaId,
+        jenisMutasi,
+        tanggal: new Date(tanggalStr),
+        keterangan,
+        alamatTujuan,
+        alamatAsal,
+        tempatMeninggal,
+        penyebab,
+        createdById: session.user.id,
       },
     });
-  }
+
+    if (jenisMutasi === "MENINGGAL" || jenisMutasi === "PINDAH_KELUAR") {
+      await tx.warga.update({
+        where: { id: wargaId },
+        data: {
+          statusAktif: false,
+          kategoriTidakAktif: jenisMutasi === "MENINGGAL" ? "Meninggal" : "Pindah Keluar",
+        },
+      });
+    }
+  });
 
   revalidatePath("/mutasi");
   revalidatePath("/warga");
@@ -52,6 +53,7 @@ export async function createMutasi(formData: FormData) {
 }
 
 export async function deleteMutasi(id: string) {
+  await requireAdmin();
   await prisma.mutasiPenduduk.delete({ where: { id } });
   revalidatePath("/mutasi");
 }

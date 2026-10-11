@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { KondisiAset } from "@prisma/client";
 
 export async function createKategoriAset(formData: FormData) {
+  await requireAdmin();
   const nama = formData.get("nama") as string;
   if (!nama) throw new Error("Nama kategori aset wajib diisi.");
 
@@ -20,6 +22,7 @@ export async function createKategoriAset(formData: FormData) {
 }
 
 export async function createAset(formData: FormData) {
+  await requireAdmin();
   const kode = (formData.get("kode") as string).toUpperCase();
   const nama = formData.get("nama") as string;
   const kategoriId = formData.get("kategoriId") as string;
@@ -58,6 +61,7 @@ export async function createAset(formData: FormData) {
 }
 
 export async function deleteAset(id: string) {
+  await requireAdmin();
   await prisma.aset.delete({ where: { id } });
   revalidatePath("/inventaris");
 }

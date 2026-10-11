@@ -1,12 +1,15 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateNomorSurat } from "@/lib/utils";
 import { StatusSurat } from "@prisma/client";
+import { suratSchema } from "@/lib/validators/warga";
 
 export async function createJenisSurat(formData: FormData) {
+  await requireAdmin();
   const nama = formData.get("nama") as string;
   const kodePrefix = (formData.get("kodePrefix") as string).toUpperCase();
   const templateHtml = formData.get("templateHtml") as string;
@@ -27,41 +30,43 @@ export async function createJenisSurat(formData: FormData) {
 }
 
 export async function createSurat(formData: FormData) {
-  const jenisSuratId = formData.get("jenisSuratId") as string;
-  const wargaId = formData.get("wargaId") as string;
-  const keperluan = formData.get("keperluan") as string;
-  const tanggalStr = formData.get("tanggal") as string;
-
-  if (!jenisSuratId || !wargaId || !keperluan || !tanggalStr) {
-    throw new Error("Semua field surat wajib diisi.");
-  }
-
-  const jenisSurat = await prisma.jenisSurat.findUnique({ where: { id: jenisSuratId } });
-  if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
-
-  const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-  if (!admin) throw new Error("User Admin tidak ditemukan.");
-
-  const newCounter = jenisSurat.counter + 1;
-  const nomorSurat = generateNomorSurat(newCounter, jenisSurat.kodePrefix, sistem?.rt || "000");
-
-  // Update counter
-  await prisma.jenisSurat.update({
-    where: { id: jenisSuratId },
-    data: { counter: newCounter },
+  const session = await requireAdmin();
+  const parsed = suratSchema.safeParse({
+    jenisSuratId: formData.get("jenisSuratId")?.toString(),
+    wargaId: formData.get("wargaId")?.toString(),
+    keperluan: formData.get("keperluan")?.toString(),
+    tanggal: formData.get("tanggal")?.toString(),
   });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data surat tidak valid.");
 
-  const surat = await prisma.surat.create({
-    data: {
-      nomorSurat,
-      jenisSuratId,
-      wargaId,
-      keperluan,
-      tanggal: new Date(tanggalStr),
-      status: StatusSurat.SELESAI,
-      createdById: admin.id,
-    },
+  const { jenisSuratId, wargaId, keperluan, tanggal: tanggalStr } = parsed.data;
+
+  const surat = await prisma.$transaction(async (tx) => {
+    const jenisSurat = await tx.jenisSurat.findUnique({ where: { id: jenisSuratId } });
+    if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
+
+    const sistem = await tx.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
+    const updatedJenisSurat = await tx.jenisSurat.update({
+      where: { id: jenisSuratId },
+      data: { counter: { increment: 1 } },
+    });
+    const nomorSurat = generateNomorSurat(
+      updatedJenisSurat.counter,
+      jenisSurat.kodePrefix,
+      sistem?.rt || "000",
+    );
+
+    return tx.surat.create({
+      data: {
+        nomorSurat,
+        jenisSuratId,
+        wargaId,
+        keperluan,
+        tanggal: new Date(tanggalStr),
+        status: StatusSurat.SELESAI,
+        createdById: session.user.id,
+      },
+    });
   });
 
   revalidatePath("/surat");
@@ -69,6 +74,7 @@ export async function createSurat(formData: FormData) {
 }
 
 export async function deleteSurat(id: string) {
+  await requireAdmin();
   await prisma.surat.delete({ where: { id } });
   revalidatePath("/surat");
   redirect("/surat");

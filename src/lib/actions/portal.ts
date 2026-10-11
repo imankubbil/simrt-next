@@ -7,49 +7,56 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateNomorSurat } from "@/lib/utils";
 import { StatusSurat } from "@prisma/client";
+import { pengajuanSuratSchema } from "@/lib/validators/warga";
 
 export async function ajukanSuratWarga(formData: FormData) {
   const session = await getServerSession(authOptions);
   if (!session?.user) throw new Error("Anda harus login terlebih dahulu.");
 
-  const jenisSuratId = formData.get("jenisSuratId") as string;
-  const keperluan = formData.get("keperluan") as string;
+  const parsed = pengajuanSuratSchema.safeParse({
+    jenisSuratId: formData.get("jenisSuratId")?.toString(),
+    keperluan: formData.get("keperluan")?.toString(),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Pengajuan surat tidak valid.");
 
-  if (!jenisSuratId || !keperluan) {
-    throw new Error("Jenis surat dan keperluan wajib diisi.");
-  }
+  const { jenisSuratId, keperluan } = parsed.data;
 
   const user = await prisma.user.findUnique({
-    where: { nik: session.user.email || "" },
+    where: { id: session.user.id },
     include: { warga: true },
   });
 
   if (!user || !user.warga) {
     throw new Error("Data Warga tidak ditemukan.");
   }
+  const wargaId = user.warga.id;
 
-  const jenisSurat = await prisma.jenisSurat.findUnique({ where: { id: jenisSuratId } });
-  if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
+  await prisma.$transaction(async (tx) => {
+    const jenisSurat = await tx.jenisSurat.findUnique({ where: { id: jenisSuratId } });
+    if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
 
-  const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
-  const newCounter = jenisSurat.counter + 1;
-  const nomorSurat = generateNomorSurat(newCounter, jenisSurat.kodePrefix, sistem?.rt || "000");
+    const sistem = await tx.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
+    const updatedJenisSurat = await tx.jenisSurat.update({
+      where: { id: jenisSuratId },
+      data: { counter: { increment: 1 } },
+    });
+    const nomorSurat = generateNomorSurat(
+      updatedJenisSurat.counter,
+      jenisSurat.kodePrefix,
+      sistem?.rt || "000",
+    );
 
-  await prisma.jenisSurat.update({
-    where: { id: jenisSuratId },
-    data: { counter: newCounter },
-  });
-
-  await prisma.surat.create({
-    data: {
-      nomorSurat,
-      jenisSuratId,
-      wargaId: user.warga.id,
-      keperluan,
-      tanggal: new Date(),
-      status: StatusSurat.DIAJUKAN,
-      createdById: user.id,
-    },
+    await tx.surat.create({
+      data: {
+        nomorSurat,
+        jenisSuratId,
+        wargaId,
+        keperluan,
+        tanggal: new Date(),
+        status: StatusSurat.DIAJUKAN,
+        createdById: user.id,
+      },
+    });
   });
 
   revalidatePath("/portal/surat");

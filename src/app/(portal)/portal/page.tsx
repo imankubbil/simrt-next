@@ -6,9 +6,9 @@ import { FileText, CreditCard, User, Clock, CheckCircle } from "lucide-react";
 
 export default async function PortalDashboardPage() {
   const session = await getServerSession(authOptions);
-  const user = session?.user?.email
+  const user = session?.user?.id
     ? await prisma.user.findUnique({
-        where: { nik: session.user.email },
+        where: { id: session.user.id },
         include: { warga: true },
       })
     : null;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const wargaSchema = z.object({
-  nik: z.string().min(1, "NIK wajib diisi"),
+  nik: z.string().length(16, "NIK harus 16 digit").regex(/^\d+$/, "NIK harus berupa angka"),
   namaLengkap: z.string().min(1, "Nama wajib diisi"),
   jenisKelamin: z.enum(["L", "P"]),
   tempatLahir: z.string().optional(),
@@ -13,6 +13,8 @@ export const wargaSchema = z.object({
   namaIbu: z.string().optional(),
   alamat: z.string().optional(),
 });
+
+export const wargaUpdateSchema = wargaSchema.omit({ nik: true });
 
 export const kartuKeluargaSchema = z.object({
   nomorKK: z.string().length(16, "Nomor KK harus 16 digit").regex(/^\d+$/, "Harus angka"),
@@ -33,11 +35,16 @@ export const suratSchema = z.object({
   tanggal: z.string().min(1, "Tanggal wajib diisi"),
 });
 
+export const pengajuanSuratSchema = z.object({
+  jenisSuratId: z.string().min(1, "Jenis surat wajib dipilih"),
+  keperluan: z.string().trim().min(1, "Keperluan wajib diisi"),
+});
+
 export const iuranSchema = z.object({
   wargaId: z.string().min(1),
   jenisIuranId: z.string().min(1),
-  bulan: z.number().min(1).max(12),
-  tahun: z.number().min(2020),
-  nominalBayar: z.number().min(0),
+  bulan: z.coerce.number().int().min(1).max(12),
+  tahun: z.coerce.number().int().min(2020),
+  nominalBayar: z.coerce.number().min(0),
   tanggalBayar: z.string().min(1),
 });

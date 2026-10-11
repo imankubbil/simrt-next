@@ -1,27 +1,31 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hash } from "bcryptjs";
-import { JenisKelamin, Agama, Kewarganegaraan } from "@prisma/client";
+import { wargaSchema, wargaUpdateSchema } from "@/lib/validators/warga";
 
 export async function createWarga(formData: FormData) {
-  const nik = formData.get("nik") as string;
-  const namaLengkap = formData.get("namaLengkap") as string;
-  const jenisKelamin = (formData.get("jenisKelamin") || "L") as JenisKelamin;
-  const tempatLahir = (formData.get("tempatLahir") as string) || null;
-  const tanggalLahirStr = formData.get("tanggalLahir") as string;
-  const agama = (formData.get("agama") || "ISLAM") as Agama;
-  const jenisPekerjaanId = (formData.get("jenisPekerjaanId") as string) || null;
-  const kewarganegaraan = (formData.get("kewarganegaraan") || "WNI") as Kewarganegaraan;
-  const namaAyah = (formData.get("namaAyah") as string) || null;
-  const namaIbu = (formData.get("namaIbu") as string) || null;
-  const alamat = (formData.get("alamat") as string) || null;
+  await requireAdmin();
+  const value = (name: string) => formData.get(name)?.toString() || undefined;
+  const parsed = wargaSchema.safeParse({
+    nik: value("nik"),
+    namaLengkap: value("namaLengkap"),
+    jenisKelamin: value("jenisKelamin") || "L",
+    tempatLahir: value("tempatLahir"),
+    tanggalLahir: value("tanggalLahir"),
+    agama: value("agama") || "ISLAM",
+    jenisPekerjaanId: value("jenisPekerjaanId"),
+    kewarganegaraan: value("kewarganegaraan") || "WNI",
+    namaAyah: value("namaAyah"),
+    namaIbu: value("namaIbu"),
+    alamat: value("alamat"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data warga tidak valid.");
 
-  if (!nik || !namaLengkap) {
-    throw new Error("NIK dan Nama Lengkap wajib diisi.");
-  }
+  const { nik, namaLengkap, jenisKelamin, tempatLahir, tanggalLahir: tanggalLahirStr, agama, jenisPekerjaanId, kewarganegaraan, namaAyah, namaIbu, alamat } = parsed.data;
 
   const existingUser = await prisma.user.findUnique({ where: { nik } });
   if (existingUser) {
@@ -58,16 +62,23 @@ export async function createWarga(formData: FormData) {
 }
 
 export async function updateWarga(id: string, formData: FormData) {
-  const namaLengkap = formData.get("namaLengkap") as string;
-  const jenisKelamin = (formData.get("jenisKelamin") || "L") as JenisKelamin;
-  const tempatLahir = (formData.get("tempatLahir") as string) || null;
-  const tanggalLahirStr = formData.get("tanggalLahir") as string;
-  const agama = (formData.get("agama") || "ISLAM") as Agama;
-  const jenisPekerjaanId = (formData.get("jenisPekerjaanId") as string) || null;
-  const kewarganegaraan = (formData.get("kewarganegaraan") || "WNI") as Kewarganegaraan;
-  const namaAyah = (formData.get("namaAyah") as string) || null;
-  const namaIbu = (formData.get("namaIbu") as string) || null;
-  const alamat = (formData.get("alamat") as string) || null;
+  await requireAdmin();
+  const value = (name: string) => formData.get(name)?.toString() || undefined;
+  const parsed = wargaUpdateSchema.safeParse({
+    namaLengkap: value("namaLengkap"),
+    jenisKelamin: value("jenisKelamin") || "L",
+    tempatLahir: value("tempatLahir"),
+    tanggalLahir: value("tanggalLahir"),
+    agama: value("agama") || "ISLAM",
+    jenisPekerjaanId: value("jenisPekerjaanId"),
+    kewarganegaraan: value("kewarganegaraan") || "WNI",
+    namaAyah: value("namaAyah"),
+    namaIbu: value("namaIbu"),
+    alamat: value("alamat"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data warga tidak valid.");
+
+  const { namaLengkap, jenisKelamin, tempatLahir, tanggalLahir: tanggalLahirStr, agama, jenisPekerjaanId, kewarganegaraan, namaAyah, namaIbu, alamat } = parsed.data;
 
   const warga = await prisma.warga.findUnique({ where: { id } });
   if (!warga) throw new Error("Warga tidak ditemukan.");
@@ -102,16 +113,20 @@ export async function updateWarga(id: string, formData: FormData) {
 }
 
 export async function deleteWarga(id: string) {
+  await requireAdmin();
   const warga = await prisma.warga.findUnique({ where: { id } });
   if (!warga) return;
 
-  await prisma.warga.delete({ where: { id } });
-  await prisma.user.delete({ where: { id: warga.userId } });
+  await prisma.$transaction([
+    prisma.warga.delete({ where: { id } }),
+    prisma.user.delete({ where: { id: warga.userId } }),
+  ]);
 
   revalidatePath("/warga");
 }
 
 export async function toggleStatusWarga(id: string) {
+  await requireAdmin();
   const warga = await prisma.warga.findUnique({ where: { id } });
   if (!warga) return;
 

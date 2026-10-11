@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { nik: session.user.email || "" },
+    where: { id: session.user.id },
   });
 
   if (!user || user.role !== "ADMIN") {

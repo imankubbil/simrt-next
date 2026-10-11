@@ -28,11 +28,11 @@ const MENU = [
 
 export function AdminSidebar() {
   return (
-    <aside className="w-64 border-r bg-card min-h-screen p-4 flex flex-col justify-between">
+    <aside className="w-16 shrink-0 md:w-64 border-r bg-card min-h-screen p-2 md:p-4 flex flex-col justify-between overflow-y-auto">
       <div>
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <Building2 className="w-7 h-7 text-primary" />
-          <span className="font-bold text-xl tracking-tight">SIMRT</span>
+        <div className="flex items-center justify-center md:justify-start gap-2 mb-8 px-2">
+          <Building2 className="w-7 h-7 shrink-0 text-primary" aria-hidden="true" />
+          <span className="hidden md:inline font-bold text-xl tracking-tight">SIMRT</span>
         </div>
         <nav className="space-y-1">
           {MENU.map((item) => {
@@ -41,17 +41,20 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={item.label}
+                title={item.label}
+                className="flex items-center justify-center md:justify-start gap-3 px-2 md:px-3 py-2 text-sm font-medium rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Icon className="w-4 h-4" />
-                {item.label}
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="hidden md:inline">{item.label}</span>
               </Link>
             );
           })}
         </nav>
       </div>
-      <div className="border-t pt-4 text-xs text-muted-foreground px-2">
-        SIMRT v2.0 - Next.js
+      <div className="border-t pt-4 text-xs text-muted-foreground px-2 text-center md:text-left">
+        <span className="hidden md:inline">SIMRT v2.0 - Next.js</span>
+        <span className="md:hidden" aria-hidden="true">v2</span>
       </div>
     </aside>
   );
