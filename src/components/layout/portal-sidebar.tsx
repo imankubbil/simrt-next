@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, FileText, CreditCard, LogOut } from "lucide-react";
+import { Home, User, FileText, CreditCard, LogOut, KeyRound } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 export function PortalSidebar() {
@@ -23,7 +23,7 @@ export function PortalSidebar() {
             <span className="hidden md:inline">Portal Warga</span>
             <span className="md:hidden" aria-hidden="true">PW</span>
           </h2>
-          <p className="hidden md:block text-xs text-muted-foreground mt-0.5">Sistem Informasi RT</p>
+          <p className="hidden md:block text-xs text-muted-foreground mt-0.5">Sistem Informasi RT/RW</p>
         </div>
 
         <nav className="space-y-1">
@@ -48,7 +48,11 @@ export function PortalSidebar() {
         </nav>
       </div>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-2">
+        <Link href="/akun/password" aria-label="Ganti password" title="Ganti password" className="flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground md:justify-start md:px-3">
+          <KeyRound className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden md:inline">Ganti password</span>
+        </Link>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           aria-label="Log Out"

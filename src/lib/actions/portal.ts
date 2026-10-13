@@ -11,7 +11,7 @@ import { pengajuanSuratSchema } from "@/lib/validators/warga";
 
 export async function ajukanSuratWarga(formData: FormData) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) throw new Error("Anda harus login terlebih dahulu.");
+  if (!session?.user?.id || session.user.role !== "WARGA") throw new Error("Anda harus login sebagai warga terlebih dahulu.");
 
   const parsed = pengajuanSuratSchema.safeParse({
     jenisSuratId: formData.get("jenisSuratId")?.toString(),

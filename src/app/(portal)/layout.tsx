@@ -6,7 +6,7 @@ import { PortalSidebar } from "@/components/layout/portal-sidebar";
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) redirect("/login");
+  if (!session?.user?.id || !session.user.role) redirect("/login");
   if ((session.user as { role?: string }).role !== "WARGA") redirect("/dashboard");
 
   return (

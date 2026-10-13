@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { bacaTandaTangan } from "@/lib/signature";
 
 export async function updateKonfigurasiSistem(formData: FormData) {
   await requireAdmin();
@@ -15,11 +16,15 @@ export async function updateKonfigurasiSistem(formData: FormData) {
   const rw = (formData.get("rw") as string) || null;
   const ketuaRtId = (formData.get("ketuaRtId") as string) || null;
   const ketuaRwId = (formData.get("ketuaRwId") as string) || null;
+  const [ttdKetuaRt, ttdKetuaRw] = await Promise.all([
+    bacaTandaTangan(formData, "ttdKetuaRt", "hapusTtdKetuaRt"),
+    bacaTandaTangan(formData, "ttdKetuaRw", "hapusTtdKetuaRw"),
+  ]);
 
   await prisma.konfigurasiSistem.upsert({
     where: { id: "singleton" },
-    update: { kabupaten, kecamatan, desa, dusun, kodePos, rt, rw, ketuaRtId, ketuaRwId },
-    create: { id: "singleton", kabupaten, kecamatan, desa, dusun, kodePos, rt, rw, ketuaRtId, ketuaRwId },
+    update: { kabupaten, kecamatan, desa, dusun, kodePos, rt, rw, ketuaRtId, ketuaRwId, ...(ttdKetuaRt !== undefined && { ttdKetuaRt }), ...(ttdKetuaRw !== undefined && { ttdKetuaRw }) },
+    create: { id: "singleton", kabupaten, kecamatan, desa, dusun, kodePos, rt, rw, ketuaRtId, ketuaRwId, ttdKetuaRt: ttdKetuaRt || null, ttdKetuaRw: ttdKetuaRw || null },
   });
 
   revalidatePath("/pengaturan");

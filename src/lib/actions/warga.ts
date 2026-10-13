@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hash } from "bcryptjs";
+import { passwordError } from "@/lib/password";
 import { wargaSchema, wargaUpdateSchema } from "@/lib/validators/warga";
 
 export async function createWarga(formData: FormData) {
@@ -32,7 +33,13 @@ export async function createWarga(formData: FormData) {
     throw new Error("NIK sudah terdaftar.");
   }
 
-  const hashedPassword = await hash("warga123", 10);
+  const passwordAwal = formData.get("passwordAwal")?.toString() || "";
+  const error = passwordError(passwordAwal);
+  if (error) throw new Error(error);
+  if (passwordAwal !== formData.get("konfirmasiPassword")?.toString()) {
+    throw new Error("Konfirmasi password tidak cocok.");
+  }
+  const hashedPassword = await hash(passwordAwal, 10);
   const tanggalLahir = tanggalLahirStr ? new Date(tanggalLahirStr) : null;
 
   await prisma.user.create({

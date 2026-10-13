@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import {
   Users,
   UserCheck,
@@ -11,6 +14,8 @@ import {
   LayoutDashboard,
   Building2,
   FileSpreadsheet,
+  LogOut,
+  KeyRound,
 } from "lucide-react";
 
 const MENU = [
@@ -32,7 +37,7 @@ export function AdminSidebar() {
       <div>
         <div className="flex items-center justify-center md:justify-start gap-2 mb-8 px-2">
           <Building2 className="w-7 h-7 shrink-0 text-primary" aria-hidden="true" />
-          <span className="hidden md:inline font-bold text-xl tracking-tight">SIMRT</span>
+          <span className="hidden md:inline font-bold text-xl tracking-tight">SIM RT/RW</span>
         </div>
         <nav className="space-y-1">
           {MENU.map((item) => {
@@ -52,9 +57,22 @@ export function AdminSidebar() {
           })}
         </nav>
       </div>
-      <div className="border-t pt-4 text-xs text-muted-foreground px-2 text-center md:text-left">
-        <span className="hidden md:inline">SIMRT v2.0 - Next.js</span>
-        <span className="md:hidden" aria-hidden="true">v2</span>
+      <div className="border-t pt-4 space-y-3">
+        <Link href="/akun/password" aria-label="Ganti password" title="Ganti password" className="flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground md:justify-start md:px-3">
+          <KeyRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="hidden md:inline">Ganti password</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          aria-label="Keluar"
+          title="Keluar"
+          className="flex w-full items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground md:justify-start md:px-3"
+        >
+          <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="hidden md:inline">Keluar</span>
+        </button>
+        <p className="hidden px-2 text-xs text-muted-foreground md:block">Sistem Informasi RT/RW</p>
       </div>
     </aside>
   );

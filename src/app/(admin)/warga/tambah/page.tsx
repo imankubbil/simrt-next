@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createWarga } from "@/lib/actions/warga";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import InitialPasswordFields from "./initial-password-fields";
 
 export default async function TambahWargaPage() {
   const pekerjaanList = await prisma.jenisPekerjaan.findMany({
@@ -132,6 +133,8 @@ export default async function TambahWargaPage() {
             className="w-full p-2 border rounded-md text-sm resize-none"
           />
         </div>
+
+        <InitialPasswordFields />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
           <Link href="/warga" className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-accent">

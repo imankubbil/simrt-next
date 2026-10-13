@@ -331,4 +331,6 @@ model KonfigurasiSistem {
   rw        String?
   ketuaRtId String?
   ketuaRwId String?
+  ttdKetuaRt String? @db.Text
+  ttdKetuaRw String? @db.Text
 }

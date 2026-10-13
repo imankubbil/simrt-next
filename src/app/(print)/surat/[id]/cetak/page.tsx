@@ -1,8 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { formatTanggal } from "@/lib/utils";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import Image from "next/image";
 
 export default async function CetakSuratPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
   const surat = await prisma.surat.findUnique({
     where: { id: params.id },
     include: {
@@ -10,11 +16,24 @@ export default async function CetakSuratPage({ params }: { params: { id: string 
       warga: { include: { user: true, jenisPekerjaan: true } },
     },
   });
-  const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
   if (!surat) notFound();
+  const bolehLihat = session.user.role === "ADMIN" || (
+    session.user.role === "WARGA" &&
+    surat.warga.userId === session.user.id &&
+    surat.status === "SELESAI"
+  );
+  if (!bolehLihat) notFound();
+
+  const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
+  const ketuaRt = sistem?.ketuaRtId
+    ? await prisma.warga.findUnique({ where: { id: sistem.ketuaRtId }, include: { user: true } })
+    : null;
+  const ketuaRw = sistem?.ketuaRwId
+    ? await prisma.warga.findUnique({ where: { id: sistem.ketuaRwId }, include: { user: true } })
+    : null;
 
   return (
-    <div className="p-12 max-w-3xl mx-auto bg-white text-black font-serif print:p-0">
+    <div className="p-12 max-w-3xl mx-auto bg-white text-black font-serif print:p-0 print:max-w-none">
       <div className="text-center border-b-2 border-black pb-4 mb-8">
         <h3 className="font-bold text-sm tracking-widest uppercase">PEMERINTAH KABUPATEN {sistem?.kabupaten || "..."}</h3>
         <h3 className="font-bold text-sm tracking-widest uppercase">KECAMATAN {sistem?.kecamatan || "..."} DESA {sistem?.desa || "..."}</h3>
@@ -49,14 +68,18 @@ export default async function CetakSuratPage({ params }: { params: { id: string 
       <div className="flex justify-between text-xs mt-16 px-8">
         <div className="text-center">
           <p>Ketua RW {sistem?.rw || "..."}</p>
-          <div className="h-20"></div>
-          <p className="font-bold underline">( ........................................ )</p>
+          <div className="h-20 flex items-center justify-center">
+            {sistem?.ttdKetuaRw && <Image src={sistem.ttdKetuaRw} alt="Tanda tangan Ketua RW" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
+          </div>
+          <p className="font-bold underline">{ketuaRw?.user.namaLengkap || "( ........................................ )"}</p>
         </div>
         <div className="text-center">
           <p>{sistem?.desa || "Sukadamai"}, {formatTanggal(new Date(surat.tanggal))}</p>
           <p>Ketua RT {sistem?.rt || "..."}</p>
-          <div className="h-16"></div>
-          <p className="font-bold underline">( ........................................ )</p>
+          <div className="h-16 flex items-center justify-center">
+            {sistem?.ttdKetuaRt && <Image src={sistem.ttdKetuaRt} alt="Tanda tangan Ketua RT" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
+          </div>
+          <p className="font-bold underline">{ketuaRt?.user.namaLengkap || "( ........................................ )"}</p>
         </div>
       </div>
     </div>

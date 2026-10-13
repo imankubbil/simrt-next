@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { formatTanggal, hitungUsia } from "@/lib/utils";
 import { deleteWarga } from "@/lib/actions/warga";
+import ResetPasswordWarga from "./reset-password";
 
 export default async function DetailWargaPage({ params }: { params: { id: string } }) {
   const warga = await prisma.warga.findUnique({
@@ -96,6 +97,7 @@ export default async function DetailWargaPage({ params }: { params: { id: string
           </div>
         )}
       </div>
+      <ResetPasswordWarga wargaId={warga.id} />
     </div>
   );
 }

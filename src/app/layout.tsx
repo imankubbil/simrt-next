@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SIMRT - Sistem Informasi Management RT",
+  title: "SIM RT/RW | Sistem Informasi Manajemen RT/RW",
   description: "Sistem informasi pengelolaan data kependudukan dan administrasi RT/RW",
 };
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { updateKonfigurasiSistem } from "@/lib/actions/pengaturan";
 import { Settings, Save } from "lucide-react";
+import Image from "next/image";
 
 export default async function PengaturanPage() {
   const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } }).catch(() => null);
@@ -13,7 +14,7 @@ export default async function PengaturanPage() {
     <div className="max-w-4xl space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Pengaturan Sistem</h1>
-        <p className="text-muted-foreground text-sm mt-1">Konfigurasi wilayah, nomor RT/RW, dan pengurus RT.</p>
+        <p className="text-muted-foreground text-sm mt-1">Konfigurasi wilayah, nomor RT/RW, dan pengurus RT/RW.</p>
       </div>
 
       <form action={updateKonfigurasiSistem} className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
@@ -85,6 +86,36 @@ export default async function PengaturanPage() {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-3 rounded-md border p-4">
+            <label htmlFor="ttdKetuaRt" className="block text-sm font-medium">Tanda tangan Ketua RT</label>
+            <p className="text-sm text-muted-foreground">Dipakai pada surat dan cetakan KK. Unggah PNG transparan atau JPG, maksimal 512 KB.</p>
+            {sistem?.ttdKetuaRt && (
+              <div className="space-y-2">
+                <Image src={sistem.ttdKetuaRt} alt="Tanda tangan Ketua RT saat ini" width={192} height={80} unoptimized className="h-20 max-w-48 object-contain" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="hapusTtdKetuaRt" /> Hapus tanda tangan RT saat disimpan
+                </label>
+              </div>
+            )}
+            <input id="ttdKetuaRt" name="ttdKetuaRt" type="file" accept="image/png,image/jpeg" className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-2 file:font-medium" />
+          </div>
+
+          <div className="space-y-3 rounded-md border p-4">
+            <label htmlFor="ttdKetuaRw" className="block text-sm font-medium">Tanda tangan Ketua RW</label>
+            <p className="text-sm text-muted-foreground">Dipakai pada surat cetak. Unggah PNG transparan atau JPG, maksimal 512 KB.</p>
+            {sistem?.ttdKetuaRw && (
+              <div className="space-y-2">
+                <Image src={sistem.ttdKetuaRw} alt="Tanda tangan Ketua RW saat ini" width={192} height={80} unoptimized className="h-20 max-w-48 object-contain" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="hapusTtdKetuaRw" /> Hapus tanda tangan RW saat disimpan
+                </label>
+              </div>
+            )}
+            <input id="ttdKetuaRw" name="ttdKetuaRw" type="file" accept="image/png,image/jpeg" className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-2 file:font-medium" />
           </div>
         </div>
 

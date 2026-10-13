@@ -32,7 +32,7 @@ export default function LaporanPage() {
     <div className="space-y-8 max-w-5xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Laporan & Export Excel</h1>
-        <p className="text-muted-foreground text-sm mt-1">Unduh rekapitulasi data SIMRT dalam format file spreadsheet Excel (.xlsx).</p>
+        <p className="text-muted-foreground text-sm mt-1">Unduh rekapitulasi data SIM RT/RW dalam format file spreadsheet Excel (.xlsx).</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

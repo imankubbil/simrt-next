@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ajukanSuratWarga } from "@/lib/actions/portal";
 import { Plus, FileText, Clock, CheckCircle, XCircle } from "lucide-react";
+import Link from "next/link";
 
 export default async function PortalSuratPage() {
   const session = await getServerSession(authOptions);
@@ -72,11 +73,11 @@ export default async function PortalSuratPage() {
         </form>
       </div>
 
-      <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
+      <div className="bg-card border rounded-lg overflow-x-auto shadow-sm">
         <div className="p-4 border-b">
           <h3 className="font-semibold">Riwayat Pengajuan Surat Saya</h3>
         </div>
-        <table className="w-full text-sm text-left">
+        <table className="w-full min-w-[850px] text-sm text-left">
           <thead className="bg-muted text-muted-foreground font-medium">
             <tr>
               <th className="p-4">Tanggal</th>
@@ -84,12 +85,13 @@ export default async function PortalSuratPage() {
               <th className="p-4">Jenis Surat</th>
               <th className="p-4">Keperluan</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {suratList.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                <td colSpan={6} className="p-8 text-center text-muted-foreground">
                   Belum ada riwayat pengajuan surat.
                 </td>
               </tr>
@@ -109,6 +111,13 @@ export default async function PortalSuratPage() {
                         <Icon className="w-3 h-3" />
                         {badge.label}
                       </span>
+                    </td>
+                    <td className="p-4">
+                      {s.status === "SELESAI" ? (
+                        <Link href={`/surat/${s.id}/cetak`} target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 py-2 font-medium hover:bg-muted">
+                          <FileText className="h-4 w-4" aria-hidden="true" /> Lihat surat
+                        </Link>
+                      ) : <span className="text-muted-foreground">—</span>}
                     </td>
                   </tr>
                 );
