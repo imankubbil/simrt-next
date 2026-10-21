@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { assertWargaInScope, requireAdmin, requireRtStaff, rtScopeWhere } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PeriodeIuran } from "@prisma/client";
@@ -27,7 +27,7 @@ export async function createJenisIuran(formData: FormData) {
 }
 
 export async function catatPembayaranIuran(formData: FormData) {
-  const session = await requireAdmin();
+  const access = await requireRtStaff();
   const parsed = iuranSchema.safeParse({
     wargaId: formData.get("wargaId")?.toString(),
     jenisIuranId: formData.get("jenisIuranId")?.toString(),
@@ -39,6 +39,8 @@ export async function catatPembayaranIuran(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data pembayaran tidak valid.");
 
   const { wargaId, jenisIuranId, bulan, tahun, nominalBayar, tanggalBayar: tanggalBayarStr } = parsed.data;
+  const warga = await assertWargaInScope(access, wargaId);
+  if (!warga.wilayahRtId) throw new Error("Warga belum memiliki RT.");
   const keterangan = formData.get("keterangan")?.toString() || null;
 
   const existing = await prisma.pembayaranIuran.findUnique({
@@ -60,7 +62,8 @@ export async function catatPembayaranIuran(formData: FormData) {
       nominalBayar,
       tanggalBayar: new Date(tanggalBayarStr),
       keterangan,
-      createdById: session.user.id,
+      createdById: access.userId,
+      wilayahRtId: warga.wilayahRtId,
     },
   });
 
@@ -69,7 +72,8 @@ export async function catatPembayaranIuran(formData: FormData) {
 }
 
 export async function deletePembayaranIuran(id: string) {
-  await requireAdmin();
-  await prisma.pembayaranIuran.delete({ where: { id } });
+  const access = await requireRtStaff();
+  const result = await prisma.pembayaranIuran.deleteMany({ where: { id, wilayahRt: { is: rtScopeWhere(access) } } });
+  if (!result.count) throw new Error("Pembayaran tidak ditemukan atau berada di luar wilayah tugas.");
   revalidatePath("/iuran");
 }

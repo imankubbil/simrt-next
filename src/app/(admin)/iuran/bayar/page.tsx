@@ -2,15 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { catatPembayaranIuran } from "@/lib/actions/iuran";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function CatatIuranPage() {
+  const access = await requireStaff();
   const jenisIuranList = await prisma.jenisIuran.findMany({
     where: { aktif: true },
     orderBy: { nama: "asc" },
   }).catch(() => []);
 
   const wargaList = await prisma.warga.findMany({
-    where: { statusAktif: true },
+    where: { ...wargaScopeWhere(access), statusAktif: true },
     include: { user: true },
     orderBy: { user: { namaLengkap: "asc" } },
   }).catch(() => []);

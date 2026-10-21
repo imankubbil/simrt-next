@@ -19,18 +19,29 @@ model User {
   tanggalLahir DateTime?
   agama        Agama        @default(ISLAM)
   role         Role         @default(WARGA)
+  wilayahRwId  String?
+  wilayahRtId  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   warga          Warga?
+  penugasanRw    WilayahRw?        @relation("PenugasanRw", fields: [wilayahRwId], references: [id], onDelete: SetNull)
+  penugasanRt    WilayahRt?        @relation("PenugasanRt", fields: [wilayahRtId], references: [id], onDelete: SetNull)
+  ketuaRwUntuk   WilayahRw[]       @relation("KetuaRw")
+  ketuaRtUntuk   WilayahRt[]       @relation("KetuaRt")
   suratDibuat    Surat[]           @relation("SuratDibuatOleh")
   iuranDicatat   PembayaranIuran[] @relation("IuranDicatatOleh")
   mutasiDicatat  MutasiPenduduk[]  @relation("MutasiDicatatOleh")
   kegiatanDibuat Kegiatan[]        @relation("KegiatanDibuatOleh")
+
+  @@index([wilayahRwId])
+  @@index([wilayahRtId])
 }
 
 enum Role {
   ADMIN
+  PENGURUS_RW
+  PENGURUS_RT
   WARGA
 }
 
@@ -63,15 +74,19 @@ model Warga {
   statusAktif        Boolean         @default(true)
   kategoriTidakAktif String?
   keterangan         String?
+  wilayahRtId        String?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
+  wilayahRt       WilayahRt?        @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
   anggotaKK       AnggotaKeluarga?
   wargaSementara  WargaSementara?
   suratList       Surat[]
   pembayaranIuran PembayaranIuran[]
   mutasi          MutasiPenduduk[]
   nomorIdentitas  NomorIdentitas[]
+
+  @@index([wilayahRtId])
 }
 
 enum Kewarganegaraan {
@@ -118,17 +133,21 @@ model NomorIdentitas {
 // ==================== KARTU KELUARGA ====================
 
 model KartuKeluarga {
-  id        String   @id @default(cuid())
-  nomorKK   String   @unique
-  alamat    String
-  rt        String?
-  rw        String?
-  kodePos   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  nomorKK     String   @unique
+  alamat      String
+  rt          String?
+  rw          String?
+  wilayahRtId String?
+  kodePos     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  anggota AnggotaKeluarga[]
-  mutasi  MutasiPenduduk[]
+  wilayahRt WilayahRt?        @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
+  anggota   AnggotaKeluarga[]
+  mutasi    MutasiPenduduk[]
+
+  @@index([wilayahRtId])
 }
 
 model AnggotaKeluarga {
@@ -175,6 +194,7 @@ model Surat {
   jenisSuratId    String
   warga           Warga       @relation(fields: [wargaId], references: [id])
   wargaId         String
+  wilayahRtId     String?
   keperluan       String      @db.Text
   tanggal         DateTime
   dataTambahan    Json?
@@ -185,6 +205,9 @@ model Surat {
   updatedAt       DateTime    @updatedAt
   createdBy       User        @relation("SuratDibuatOleh", fields: [createdById], references: [id])
   createdById     String
+  wilayahRt       WilayahRt?  @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
+
+  @@index([wilayahRtId])
 }
 
 enum StatusSurat {
@@ -198,11 +221,11 @@ enum StatusSurat {
 // ==================== KEUANGAN ====================
 
 model JenisIuran {
-  id         String       @id @default(cuid())
+  id         String            @id @default(cuid())
   nama       String
-  nominal    Decimal      @db.Decimal(12, 0)
-  periode    PeriodeIuran @default(BULANAN)
-  aktif      Boolean      @default(true)
+  nominal    Decimal           @db.Decimal(12, 0)
+  periode    PeriodeIuran      @default(BULANAN)
+  aktif      Boolean           @default(true)
   keterangan String?
   pembayaran PembayaranIuran[]
 }
@@ -226,28 +249,38 @@ model PembayaranIuran {
   createdAt    DateTime   @default(now())
   createdBy    User       @relation("IuranDicatatOleh", fields: [createdById], references: [id])
   createdById  String
+  wilayahRtId  String?
+  wilayahRt    WilayahRt? @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
 
   @@unique([wargaId, jenisIuranId, bulan, tahun])
+  @@index([wilayahRtId])
 }
 
 // ==================== MUTASI ====================
 
 model MutasiPenduduk {
-  id              String         @id @default(cuid())
-  warga           Warga          @relation(fields: [wargaId], references: [id])
-  wargaId         String
-  jenisMutasi     JenisMutasi
-  tanggal         DateTime
-  keterangan      String?
-  alamatTujuan    String?
-  alamatAsal      String?
-  tempatMeninggal String?
-  penyebab        String?
-  kartuKeluarga   KartuKeluarga? @relation(fields: [kartuKeluargaId], references: [id])
-  kartuKeluargaId String?
-  createdAt       DateTime       @default(now())
-  createdBy       User           @relation("MutasiDicatatOleh", fields: [createdById], references: [id])
-  createdById     String
+  id                String         @id @default(cuid())
+  warga             Warga          @relation(fields: [wargaId], references: [id])
+  wargaId           String
+  jenisMutasi       JenisMutasi
+  tanggal           DateTime
+  keterangan        String?
+  alamatTujuan      String?
+  alamatAsal        String?
+  tempatMeninggal   String?
+  penyebab          String?
+  kartuKeluarga     KartuKeluarga? @relation(fields: [kartuKeluargaId], references: [id])
+  kartuKeluargaId   String?
+  createdAt         DateTime       @default(now())
+  createdBy         User           @relation("MutasiDicatatOleh", fields: [createdById], references: [id])
+  createdById       String
+  wilayahRtId       String?
+  wilayahRt         WilayahRt?     @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
+  wilayahRtTujuanId String?
+  wilayahRtTujuan   WilayahRt?     @relation("MutasiTujuan", fields: [wilayahRtTujuanId], references: [id], onDelete: Restrict)
+
+  @@index([wilayahRtId])
+  @@index([wilayahRtTujuanId])
 }
 
 enum JenisMutasi {
@@ -280,6 +313,10 @@ model Kegiatan {
   createdAt      DateTime      @default(now())
   createdBy      User          @relation("KegiatanDibuatOleh", fields: [createdById], references: [id])
   createdById    String
+  wilayahRtId    String?
+  wilayahRt      WilayahRt?    @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
+
+  @@index([wilayahRtId])
 }
 
 enum Berulang {
@@ -310,6 +347,10 @@ model Aset {
   keterangan        String?
   fotoUrl           String?
   createdAt         DateTime     @default(now())
+  wilayahRtId       String?
+  wilayahRt         WilayahRt?   @relation(fields: [wilayahRtId], references: [id], onDelete: Restrict)
+
+  @@index([wilayahRtId])
 }
 
 enum KondisiAset {
@@ -320,17 +361,54 @@ enum KondisiAset {
 
 // ==================== KONFIGURASI ====================
 
+model WilayahRw {
+  id         String   @id @default(cuid())
+  nomor      String   @unique
+  ketuaRwId  String?
+  ttdKetuaRw String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ketuaRw  User?       @relation("KetuaRw", fields: [ketuaRwId], references: [id], onDelete: SetNull)
+  pengurus User[]      @relation("PenugasanRw")
+  rtList   WilayahRt[]
+}
+
+model WilayahRt {
+  id         String   @id @default(cuid())
+  nomor      String
+  rwId       String
+  ketuaRtId  String?
+  ttdKetuaRt String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  rw                  WilayahRw         @relation(fields: [rwId], references: [id], onDelete: Restrict)
+  ketuaRt             User?             @relation("KetuaRt", fields: [ketuaRtId], references: [id], onDelete: SetNull)
+  pengurus            User[]            @relation("PenugasanRt")
+  wargaList           Warga[]
+  kkList              KartuKeluarga[]
+  suratList           Surat[]
+  pembayaranIuranList PembayaranIuran[]
+  mutasiList          MutasiPenduduk[]
+  mutasiTujuanList    MutasiPenduduk[]  @relation("MutasiTujuan")
+  kegiatanList        Kegiatan[]
+  asetList            Aset[]
+
+  @@unique([rwId, nomor])
+}
+
 model KonfigurasiSistem {
-  id        String @id @default("singleton")
-  kabupaten String?
-  kecamatan String?
-  desa      String?
-  dusun     String?
-  kodePos   String?
-  rt        String?
-  rw        String?
-  ketuaRtId String?
-  ketuaRwId String?
+  id         String  @id @default("singleton")
+  kabupaten  String?
+  kecamatan  String?
+  desa       String?
+  dusun      String?
+  kodePos    String?
+  rt         String?
+  rw         String?
+  ketuaRtId  String?
+  ketuaRwId  String?
   ttdKetuaRt String? @db.Text
   ttdKetuaRw String? @db.Text
 }

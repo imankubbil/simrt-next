@@ -3,9 +3,12 @@ import Link from "next/link";
 import { Plus, CreditCard, Trash2 } from "lucide-react";
 import { formatTanggal } from "@/lib/utils";
 import { deletePembayaranIuran } from "@/lib/actions/iuran";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function IuranPage() {
+  const access = await requireStaff();
   const iuranList = await prisma.pembayaranIuran.findMany({
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
     include: { jenisIuran: true, warga: { include: { user: true } } },
     orderBy: [{ tahun: "desc" }, { bulan: "desc" }],
   }).catch(() => []);

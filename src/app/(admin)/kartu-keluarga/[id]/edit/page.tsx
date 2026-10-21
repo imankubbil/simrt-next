@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { updateKartuKeluarga } from "@/lib/actions/kartu-keluarga";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function EditKKPage({ params }: { params: { id: string } }) {
-  const kk = await prisma.kartuKeluarga.findUnique({ where: { id: params.id } });
+  const access = await requireStaff();
+  const kk = await prisma.kartuKeluarga.findFirst({
+    where: { id: params.id, wilayahRt: { is: rtScopeWhere(access) } },
+    include: { wilayahRt: { include: { rw: true } } },
+  });
   if (!kk) notFound();
 
   const updateAction = updateKartuKeluarga.bind(null, kk.id);
@@ -36,15 +41,10 @@ export default async function EditKKPage({ params }: { params: { id: string } })
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1 text-sm">
-              <label className="font-medium">RT</label>
-              <input name="rt" type="text" defaultValue={kk.rt || ""} className="w-full p-2 border rounded-md text-sm" />
-            </div>
-            <div className="space-y-1 text-sm">
-              <label className="font-medium">RW</label>
-              <input name="rw" type="text" defaultValue={kk.rw || ""} className="w-full p-2 border rounded-md text-sm" />
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <p className="self-center text-sm text-muted-foreground">
+              Wilayah: {kk.wilayahRt ? `RT ${kk.wilayahRt.nomor} / RW ${kk.wilayahRt.rw.nomor}` : "Belum ditentukan"}
+            </p>
             <div className="space-y-1 text-sm">
               <label className="font-medium">Kode Pos</label>
               <input name="kodePos" type="text" defaultValue={kk.kodePos || ""} className="w-full p-2 border rounded-md text-sm" />

@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function KartuKeluargaPage() {
+  const access = await requireStaff();
   const kkList = await prisma.kartuKeluarga.findMany({
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
     include: { anggota: { include: { warga: { include: { user: true } } } } },
     orderBy: { createdAt: "desc" },
   }).catch(() => []);

@@ -5,10 +5,12 @@ import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { formatTanggal, hitungUsia } from "@/lib/utils";
 import { deleteWarga } from "@/lib/actions/warga";
 import ResetPasswordWarga from "./reset-password";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function DetailWargaPage({ params }: { params: { id: string } }) {
-  const warga = await prisma.warga.findUnique({
-    where: { id: params.id },
+  const access = await requireStaff();
+  const warga = await prisma.warga.findFirst({
+    where: { id: params.id, ...wargaScopeWhere(access) },
     include: {
       user: true,
       jenisPekerjaan: true,

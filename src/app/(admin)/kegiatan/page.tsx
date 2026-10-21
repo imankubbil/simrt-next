@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { createKegiatan, createJenisKegiatan, deleteKegiatan } from "@/lib/actions/kegiatan";
 import { Calendar, Plus, MapPin, Trash2, Clock, CheckCircle } from "lucide-react";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function KegiatanPage() {
+  const access = await requireStaff();
+  const rtList = await prisma.wilayahRt.findMany({ where: rtScopeWhere(access), include: { rw: true }, orderBy: [{ rw: { nomor: "asc" } }, { nomor: "asc" }] });
   const kegiatanList = await prisma.kegiatan.findMany({
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
     include: { jenis: true },
     orderBy: { tanggalMulai: "desc" },
   }).catch(() => []);
@@ -91,6 +95,15 @@ export default async function KegiatanPage() {
             <Plus className="w-5 h-5 text-primary" /> Form Tambah Agenda Kegiatan
           </h2>
           <form action={createKegiatan} className="space-y-4">
+            {access.role === "ADMIN" && (
+              <div className="space-y-1 text-sm">
+                <label className="font-medium">Wilayah RT <span className="text-red-500">*</span></label>
+                <select name="wilayahRtId" className="w-full p-2 border rounded-md text-sm bg-background" required>
+                  <option value="">-- Pilih RT --</option>
+                  {rtList.map((rt) => <option key={rt.id} value={rt.id}>RT {rt.nomor} / RW {rt.rw.nomor}</option>)}
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1 text-sm">
                 <label className="font-medium">Judul Kegiatan <span className="text-red-500">*</span></label>

@@ -1,14 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { Users, UserCheck, Building2, FileText, CreditCard, History } from "lucide-react";
+import { requireStaff, rtScopeWhere, wargaScopeWhere } from "@/lib/auth";
 
-async function getStats() {
+async function getStats(access: Awaited<ReturnType<typeof requireStaff>>) {
   try {
-    const totalWarga = await prisma.warga.count({ where: { statusAktif: true, wargaSementara: null } });
-    const totalSementara = await prisma.wargaSementara.count({ where: { tanggalKeluar: null } });
-    const totalKK = await prisma.kartuKeluarga.count();
-    const totalSurat = await prisma.surat.count();
-    const totalLaki = await prisma.user.count({ where: { jenisKelamin: "L" } });
-    const totalPerempuan = await prisma.user.count({ where: { jenisKelamin: "P" } });
+    const wargaWhere = wargaScopeWhere(access);
+    const rtWhere = { wilayahRt: { is: rtScopeWhere(access) } };
+    const totalWarga = await prisma.warga.count({ where: { ...wargaWhere, statusAktif: true, wargaSementara: null } });
+    const totalSementara = await prisma.wargaSementara.count({ where: { tanggalKeluar: null, warga: wargaWhere } });
+    const totalKK = await prisma.kartuKeluarga.count({ where: rtWhere });
+    const totalSurat = await prisma.surat.count({ where: rtWhere });
+    const totalLaki = await prisma.warga.count({ where: { ...wargaWhere, user: { jenisKelamin: "L" } } });
+    const totalPerempuan = await prisma.warga.count({ where: { ...wargaWhere, user: { jenisKelamin: "P" } } });
 
     return { totalWarga, totalSementara, totalKK, totalSurat, totalLaki, totalPerempuan };
   } catch (e) {
@@ -17,7 +20,8 @@ async function getStats() {
 }
 
 export default async function DashboardPage() {
-  const stats = await getStats();
+  const access = await requireStaff();
+  const stats = await getStats(access);
 
   const CARDS = [
     { label: "Warga Tetap", value: stats.totalWarga, icon: Users, color: "text-blue-500" },

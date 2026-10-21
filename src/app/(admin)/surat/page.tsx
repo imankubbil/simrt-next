@@ -2,9 +2,12 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus, Eye, FilePlus } from "lucide-react";
 import { formatTanggal } from "@/lib/utils";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function SuratPage() {
+  const access = await requireStaff();
   const suratList = await prisma.surat.findMany({
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
     include: { jenisSurat: true, warga: { include: { user: true } } },
     orderBy: { tanggal: "desc" },
   }).catch(() => []);

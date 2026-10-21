@@ -2,22 +2,27 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { formatTanggal } from "@/lib/utils";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireStaff, rtScopeWhere } from "@/lib/auth";
 import Image from "next/image";
 
 export default async function CetakSuratPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const surat = await prisma.surat.findUnique({
-    where: { id: params.id },
+  const access = session.user.role === "WARGA" ? null : await requireStaff();
+  const surat = await prisma.surat.findFirst({
+    where: {
+      id: params.id,
+      ...(access ? { wilayahRt: { is: rtScopeWhere(access) } } : { warga: { userId: session.user.id, statusAktif: true } }),
+    },
     include: {
       jenisSurat: true,
       warga: { include: { user: true, jenisPekerjaan: true } },
+      wilayahRt: { include: { ketuaRt: true, rw: { include: { ketuaRw: true } } } },
     },
   });
   if (!surat) notFound();
-  const bolehLihat = session.user.role === "ADMIN" || (
+  const bolehLihat = !!access || (
     session.user.role === "WARGA" &&
     surat.warga.userId === session.user.id &&
     surat.status === "SELESAI"
@@ -25,19 +30,25 @@ export default async function CetakSuratPage({ params }: { params: { id: string 
   if (!bolehLihat) notFound();
 
   const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
-  const ketuaRt = sistem?.ketuaRtId
+  const ketuaRtLama = sistem?.ketuaRtId
     ? await prisma.warga.findUnique({ where: { id: sistem.ketuaRtId }, include: { user: true } })
     : null;
-  const ketuaRw = sistem?.ketuaRwId
+  const ketuaRwLama = sistem?.ketuaRwId
     ? await prisma.warga.findUnique({ where: { id: sistem.ketuaRwId }, include: { user: true } })
     : null;
+  const rtNomor = surat.wilayahRt?.nomor || sistem?.rt || "...";
+  const rwNomor = surat.wilayahRt?.rw.nomor || sistem?.rw || "...";
+  const ketuaRt = surat.wilayahRt?.ketuaRt?.namaLengkap || ketuaRtLama?.user.namaLengkap;
+  const ketuaRw = surat.wilayahRt?.rw.ketuaRw?.namaLengkap || ketuaRwLama?.user.namaLengkap;
+  const ttdKetuaRt = surat.wilayahRt?.ttdKetuaRt || sistem?.ttdKetuaRt;
+  const ttdKetuaRw = surat.wilayahRt?.rw.ttdKetuaRw || sistem?.ttdKetuaRw;
 
   return (
     <div className="p-12 max-w-3xl mx-auto bg-white text-black font-serif print:p-0 print:max-w-none">
       <div className="text-center border-b-2 border-black pb-4 mb-8">
         <h3 className="font-bold text-sm tracking-widest uppercase">PEMERINTAH KABUPATEN {sistem?.kabupaten || "..."}</h3>
         <h3 className="font-bold text-sm tracking-widest uppercase">KECAMATAN {sistem?.kecamatan || "..."} DESA {sistem?.desa || "..."}</h3>
-        <h2 className="font-bold text-lg mt-1 tracking-wider">RUKUN TETANGGA {sistem?.rt || "..."} RUKUN WARGA {sistem?.rw || "..."}</h2>
+        <h2 className="font-bold text-lg mt-1 tracking-wider">RUKUN TETANGGA {rtNomor} RUKUN WARGA {rwNomor}</h2>
       </div>
 
       <div className="text-center mb-8">
@@ -46,7 +57,7 @@ export default async function CetakSuratPage({ params }: { params: { id: string 
       </div>
 
       <div className="space-y-4 text-sm leading-relaxed mb-8">
-        <p>Yang bertanda tangan di bawah ini Ketua RT {sistem?.rt || "..."} / RW {sistem?.rw || "..."} Desa {sistem?.desa || "..."}, Kecamatan {sistem?.kecamatan || "..."}, Kabupaten {sistem?.kabupaten || "..."}, menerangkan bahwa:</p>
+        <p>Yang bertanda tangan di bawah ini Ketua RT {rtNomor} / RW {rwNomor} Desa {sistem?.desa || "..."}, Kecamatan {sistem?.kecamatan || "..."}, Kabupaten {sistem?.kabupaten || "..."}, menerangkan bahwa:</p>
 
         <table className="w-full text-sm ml-4 border-separate space-y-1">
           <tbody>
@@ -60,26 +71,26 @@ export default async function CetakSuratPage({ params }: { params: { id: string 
           </tbody>
         </table>
 
-        <p>Orang tersebut di atas adalah benar-benar warga RT {sistem?.rt || "..."} / RW {sistem?.rw || "..."} kami dan bermaksud mengurus surat keterangan ini untuk keperluan: <b>{surat.keperluan}</b>.</p>
+        <p>Orang tersebut di atas adalah benar-benar warga RT {rtNomor} / RW {rwNomor} kami dan bermaksud mengurus surat keterangan ini untuk keperluan: <b>{surat.keperluan}</b>.</p>
 
         <p>Demikian Surat Keterangan ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.</p>
       </div>
 
       <div className="flex justify-between text-xs mt-16 px-8">
         <div className="text-center">
-          <p>Ketua RW {sistem?.rw || "..."}</p>
+          <p>Ketua RW {rwNomor}</p>
           <div className="h-20 flex items-center justify-center">
-            {sistem?.ttdKetuaRw && <Image src={sistem.ttdKetuaRw} alt="Tanda tangan Ketua RW" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
+            {ttdKetuaRw && <Image src={ttdKetuaRw} alt="Tanda tangan Ketua RW" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
           </div>
-          <p className="font-bold underline">{ketuaRw?.user.namaLengkap || "( ........................................ )"}</p>
+          <p className="font-bold underline">{ketuaRw || "( ........................................ )"}</p>
         </div>
         <div className="text-center">
           <p>{sistem?.desa || "Sukadamai"}, {formatTanggal(new Date(surat.tanggal))}</p>
-          <p>Ketua RT {sistem?.rt || "..."}</p>
+          <p>Ketua RT {rtNomor}</p>
           <div className="h-16 flex items-center justify-center">
-            {sistem?.ttdKetuaRt && <Image src={sistem.ttdKetuaRt} alt="Tanda tangan Ketua RT" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
+            {ttdKetuaRt && <Image src={ttdKetuaRt} alt="Tanda tangan Ketua RT" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
           </div>
-          <p className="font-bold underline">{ketuaRt?.user.namaLengkap || "( ........................................ )"}</p>
+          <p className="font-bold underline">{ketuaRt || "( ........................................ )"}</p>
         </div>
       </div>
     </div>

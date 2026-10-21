@@ -29,13 +29,18 @@ export async function ajukanSuratWarga(formData: FormData) {
   if (!user || !user.warga) {
     throw new Error("Data Warga tidak ditemukan.");
   }
+  if (!user.warga.statusAktif || !user.warga.wilayahRtId) {
+    throw new Error("Akun warga tidak aktif atau belum ditempatkan pada RT.");
+  }
   const wargaId = user.warga.id;
+  const wilayahRtId = user.warga.wilayahRtId;
 
   await prisma.$transaction(async (tx) => {
     const jenisSurat = await tx.jenisSurat.findUnique({ where: { id: jenisSuratId } });
     if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
 
-    const sistem = await tx.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
+    const rt = await tx.wilayahRt.findUnique({ where: { id: wilayahRtId }, select: { nomor: true } });
+    if (!rt) throw new Error("RT warga tidak ditemukan.");
     const updatedJenisSurat = await tx.jenisSurat.update({
       where: { id: jenisSuratId },
       data: { counter: { increment: 1 } },
@@ -43,7 +48,7 @@ export async function ajukanSuratWarga(formData: FormData) {
     const nomorSurat = generateNomorSurat(
       updatedJenisSurat.counter,
       jenisSurat.kodePrefix,
-      sistem?.rt || "000",
+      rt.nomor,
     );
 
     await tx.surat.create({
@@ -51,6 +56,7 @@ export async function ajukanSuratWarga(formData: FormData) {
         nomorSurat,
         jenisSuratId,
         wargaId,
+        wilayahRtId,
         keperluan,
         tanggal: new Date(),
         status: StatusSurat.DIAJUKAN,

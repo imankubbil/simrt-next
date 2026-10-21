@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { assignedRtId, requireRtStaff, wargaScopeWhere } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hash } from "bcryptjs";
@@ -9,7 +9,7 @@ import { passwordError } from "@/lib/password";
 import { wargaSchema, wargaUpdateSchema } from "@/lib/validators/warga";
 
 export async function createWarga(formData: FormData) {
-  await requireAdmin();
+  const access = await requireRtStaff();
   const value = (name: string) => formData.get(name)?.toString() || undefined;
   const parsed = wargaSchema.safeParse({
     nik: value("nik"),
@@ -41,6 +41,7 @@ export async function createWarga(formData: FormData) {
   }
   const hashedPassword = await hash(passwordAwal, 10);
   const tanggalLahir = tanggalLahirStr ? new Date(tanggalLahirStr) : null;
+  const wilayahRtId = assignedRtId(access, value("wilayahRtId"));
 
   await prisma.user.create({
     data: {
@@ -55,6 +56,7 @@ export async function createWarga(formData: FormData) {
       warga: {
         create: {
           jenisPekerjaanId: jenisPekerjaanId || undefined,
+          wilayahRtId,
           kewarganegaraan,
           namaAyah,
           namaIbu,
@@ -69,7 +71,7 @@ export async function createWarga(formData: FormData) {
 }
 
 export async function updateWarga(id: string, formData: FormData) {
-  await requireAdmin();
+  const access = await requireRtStaff();
   const value = (name: string) => formData.get(name)?.toString() || undefined;
   const parsed = wargaUpdateSchema.safeParse({
     namaLengkap: value("namaLengkap"),
@@ -87,8 +89,8 @@ export async function updateWarga(id: string, formData: FormData) {
 
   const { namaLengkap, jenisKelamin, tempatLahir, tanggalLahir: tanggalLahirStr, agama, jenisPekerjaanId, kewarganegaraan, namaAyah, namaIbu, alamat } = parsed.data;
 
-  const warga = await prisma.warga.findUnique({ where: { id } });
-  if (!warga) throw new Error("Warga tidak ditemukan.");
+  const warga = await prisma.warga.findFirst({ where: { id, ...wargaScopeWhere(access) } });
+  if (!warga) throw new Error("Warga tidak ditemukan atau berada di luar wilayah tugas.");
 
   const tanggalLahir = tanggalLahirStr ? new Date(tanggalLahirStr) : null;
 
@@ -120,8 +122,8 @@ export async function updateWarga(id: string, formData: FormData) {
 }
 
 export async function deleteWarga(id: string) {
-  await requireAdmin();
-  const warga = await prisma.warga.findUnique({ where: { id } });
+  const access = await requireRtStaff();
+  const warga = await prisma.warga.findFirst({ where: { id, ...wargaScopeWhere(access) } });
   if (!warga) return;
 
   await prisma.$transaction([
@@ -133,8 +135,8 @@ export async function deleteWarga(id: string) {
 }
 
 export async function toggleStatusWarga(id: string) {
-  await requireAdmin();
-  const warga = await prisma.warga.findUnique({ where: { id } });
+  const access = await requireRtStaff();
+  const warga = await prisma.warga.findFirst({ where: { id, ...wargaScopeWhere(access) } });
   if (!warga) return;
 
   await prisma.warga.update({

@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { createAset, createKategoriAset, deleteAset } from "@/lib/actions/inventaris";
 import { Package, Plus, MapPin, Trash2, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function InventarisPage() {
+  const access = await requireStaff();
+  const rtList = await prisma.wilayahRt.findMany({ where: rtScopeWhere(access), include: { rw: true }, orderBy: [{ rw: { nomor: "asc" } }, { nomor: "asc" }] });
   const asetList = await prisma.aset.findMany({
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
     include: { kategori: true },
     orderBy: { createdAt: "desc" },
   }).catch(() => []);
@@ -83,6 +87,15 @@ export default async function InventarisPage() {
             <Plus className="w-5 h-5 text-primary" /> Form Catat Aset Baru
           </h2>
           <form action={createAset} className="space-y-4">
+            {access.role === "ADMIN" && (
+              <div className="space-y-1 text-sm">
+                <label className="font-medium">Wilayah RT <span className="text-red-500">*</span></label>
+                <select name="wilayahRtId" className="w-full p-2 border rounded-md text-sm bg-background" required>
+                  <option value="">-- Pilih RT --</option>
+                  {rtList.map((rt) => <option key={rt.id} value={rt.id}>RT {rt.nomor} / RW {rt.rw.nomor}</option>)}
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1 text-sm">
                 <label className="font-medium">Kode Aset <span className="text-red-500">*</span></label>

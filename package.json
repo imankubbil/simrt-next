@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "prisma generate && next build",
+    "test": "tsx --test tests/password.test.ts tests/signature.test.ts tests/region-access.test.ts",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
+    "db:migrate-multiple-rt": "tsx prisma/migrate-multiple-rt.ts",
+    "db:migrate-multiple-rt-phase-3": "tsx prisma/migrate-multiple-rt-phase-3.ts",
+    "db:check-multiple-rt": "tsx prisma/check-multiple-rt.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },

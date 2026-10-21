@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { updateWarga } from "@/lib/actions/warga";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function EditWargaPage({ params }: { params: { id: string } }) {
-  const warga = await prisma.warga.findUnique({
-    where: { id: params.id },
+  const access = await requireStaff();
+  const warga = await prisma.warga.findFirst({
+    where: { id: params.id, ...wargaScopeWhere(access) },
     include: { user: true },
   });
 

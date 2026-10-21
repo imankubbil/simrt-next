@@ -2,9 +2,12 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus, Eye, Edit, Trash2, Briefcase } from "lucide-react";
 import { deleteWarga } from "@/lib/actions/warga";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function WargaPage() {
+  const access = await requireStaff();
   const wargaList = await prisma.warga.findMany({
+    where: wargaScopeWhere(access),
     include: { user: true, jenisPekerjaan: true },
     orderBy: { createdAt: "desc" },
   }).catch(() => []);

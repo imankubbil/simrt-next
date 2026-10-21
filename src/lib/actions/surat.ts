@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { assertWargaInScope, requireAdmin, requireRtStaff, rtScopeWhere } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateNomorSurat } from "@/lib/utils";
@@ -30,7 +30,7 @@ export async function createJenisSurat(formData: FormData) {
 }
 
 export async function createSurat(formData: FormData) {
-  const session = await requireAdmin();
+  const access = await requireRtStaff();
   const parsed = suratSchema.safeParse({
     jenisSuratId: formData.get("jenisSuratId")?.toString(),
     wargaId: formData.get("wargaId")?.toString(),
@@ -40,12 +40,15 @@ export async function createSurat(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Data surat tidak valid.");
 
   const { jenisSuratId, wargaId, keperluan, tanggal: tanggalStr } = parsed.data;
+  const warga = await assertWargaInScope(access, wargaId);
+  if (!warga.wilayahRtId) throw new Error("Warga belum memiliki RT.");
 
   const surat = await prisma.$transaction(async (tx) => {
     const jenisSurat = await tx.jenisSurat.findUnique({ where: { id: jenisSuratId } });
     if (!jenisSurat) throw new Error("Jenis surat tidak ditemukan.");
 
-    const sistem = await tx.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
+    const rt = await tx.wilayahRt.findUnique({ where: { id: warga.wilayahRtId! }, select: { nomor: true } });
+    if (!rt) throw new Error("RT warga tidak ditemukan.");
     const updatedJenisSurat = await tx.jenisSurat.update({
       where: { id: jenisSuratId },
       data: { counter: { increment: 1 } },
@@ -53,7 +56,7 @@ export async function createSurat(formData: FormData) {
     const nomorSurat = generateNomorSurat(
       updatedJenisSurat.counter,
       jenisSurat.kodePrefix,
-      sistem?.rt || "000",
+      rt.nomor,
     );
 
     return tx.surat.create({
@@ -61,10 +64,11 @@ export async function createSurat(formData: FormData) {
         nomorSurat,
         jenisSuratId,
         wargaId,
+        wilayahRtId: warga.wilayahRtId,
         keperluan,
         tanggal: new Date(tanggalStr),
         status: StatusSurat.SELESAI,
-        createdById: session.user.id,
+        createdById: access.userId,
       },
     });
   });
@@ -74,8 +78,9 @@ export async function createSurat(formData: FormData) {
 }
 
 export async function deleteSurat(id: string) {
-  await requireAdmin();
-  await prisma.surat.delete({ where: { id } });
+  const access = await requireRtStaff();
+  const result = await prisma.surat.deleteMany({ where: { id, wilayahRt: { is: rtScopeWhere(access) } } });
+  if (!result.count) throw new Error("Surat tidak ditemukan atau berada di luar wilayah tugas.");
   revalidatePath("/surat");
   redirect("/surat");
 }

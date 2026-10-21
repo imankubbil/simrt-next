@@ -2,15 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { createSurat } from "@/lib/actions/surat";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function BuatSuratPage() {
+  const access = await requireStaff();
   const jenisSuratList = await prisma.jenisSurat.findMany({
     where: { aktif: true },
     orderBy: { nama: "asc" },
   }).catch(() => []);
 
   const wargaList = await prisma.warga.findMany({
-    where: { statusAktif: true },
+    where: { ...wargaScopeWhere(access), statusAktif: true },
     include: { user: true },
     orderBy: { user: { namaLengkap: "asc" } },
   }).catch(() => []);

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { ArrowLeft, Printer, Trash2 } from "lucide-react";
 import { deleteSurat } from "@/lib/actions/surat";
 import { formatTanggal } from "@/lib/utils";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function DetailSuratPage({ params }: { params: { id: string } }) {
-  const surat = await prisma.surat.findUnique({
-    where: { id: params.id },
+  const access = await requireStaff();
+  const surat = await prisma.surat.findFirst({
+    where: { id: params.id, wilayahRt: { is: rtScopeWhere(access) } },
     include: {
       jenisSurat: true,
       warga: { include: { user: true, jenisPekerjaan: true } },

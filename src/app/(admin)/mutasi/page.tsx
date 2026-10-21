@@ -1,14 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { createMutasi, deleteMutasi } from "@/lib/actions/mutasi";
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Heart, UserMinus } from "lucide-react";
+import { requireStaff, rtScopeWhere, wargaScopeWhere } from "@/lib/auth";
 
 export default async function MutasiPage() {
+  const access = await requireStaff();
   const mutasiList = await prisma.mutasiPenduduk.findMany({
-    include: { warga: { include: { user: true } } },
+    where: { wilayahRt: { is: rtScopeWhere(access) } },
+    include: {
+      warga: { include: { user: true } },
+      wilayahRt: { include: { rw: true } },
+      wilayahRtTujuan: { include: { rw: true } },
+    },
     orderBy: { tanggal: "desc" },
   }).catch(() => []);
 
   const wargaList = await prisma.warga.findMany({
+    where: wargaScopeWhere(access),
     include: { user: true },
     orderBy: { user: { namaLengkap: "asc" } },
   }).catch(() => []);
@@ -150,7 +158,11 @@ export default async function MutasiPage() {
                       </span>
                     </td>
                     <td className="p-4 font-medium">{m.warga.user.namaLengkap} ({m.warga.user.nik})</td>
-                    <td className="p-4">{m.alamatTujuan || m.alamatAsal || m.tempatMeninggal || "-"}</td>
+                    <td className="p-4">
+                      {m.wilayahRtTujuan
+                        ? `RT ${m.wilayahRt?.nomor || "-"} / RW ${m.wilayahRt?.rw.nomor || "-"} ke RT ${m.wilayahRtTujuan.nomor} / RW ${m.wilayahRtTujuan.rw.nomor}`
+                        : m.alamatTujuan || m.alamatAsal || m.tempatMeninggal || "-"}
+                    </td>
                     <td className="p-4 text-muted-foreground">{m.keterangan || "-"}</td>
                     <td className="p-4 text-right">
                       <form action={deleteAction} className="inline">

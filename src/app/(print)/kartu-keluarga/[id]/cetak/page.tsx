@@ -1,26 +1,30 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatTanggal } from "@/lib/utils";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 import Image from "next/image";
 
 export default async function CetakKKPage({ params }: { params: { id: string } }) {
-  await requireAdmin();
-  const kk = await prisma.kartuKeluarga.findUnique({
-    where: { id: params.id },
+  const access = await requireStaff();
+  const kk = await prisma.kartuKeluarga.findFirst({
+    where: { id: params.id, wilayahRt: { is: rtScopeWhere(access) } },
     include: {
       anggota: {
         include: { warga: { include: { user: true, jenisPekerjaan: true } } },
         orderBy: { tanggalMasuk: "asc" },
       },
+      wilayahRt: { include: { ketuaRt: true, rw: { select: { nomor: true } } } },
     },
   });
 
   if (!kk) notFound();
   const sistem = await prisma.konfigurasiSistem.findUnique({ where: { id: "singleton" } });
-  const ketuaRt = sistem?.ketuaRtId
+  const ketuaRtLama = sistem?.ketuaRtId
     ? await prisma.warga.findUnique({ where: { id: sistem.ketuaRtId }, include: { user: true } })
     : null;
+  const rtNomor = kk.wilayahRt?.nomor || kk.rt || "...";
+  const ketuaRt = kk.wilayahRt?.ketuaRt?.namaLengkap || ketuaRtLama?.user.namaLengkap;
+  const ttdKetuaRt = kk.wilayahRt?.ttdKetuaRt || sistem?.ttdKetuaRt;
 
   const kepala = kk.anggota.find((a) => a.hubungan === "KEPALA_KELUARGA");
 
@@ -45,7 +49,7 @@ export default async function CetakKKPage({ params }: { params: { id: string } }
           <span className="inline-block w-32 font-semibold">Kecamatan</span>: {sistem?.kecamatan || "-"}
         </div>
         <div>
-          <span className="inline-block w-32 font-semibold">RT/RW</span>: {kk.rt || "-"}/{kk.rw || "-"}
+          <span className="inline-block w-32 font-semibold">RT/RW</span>: {rtNomor}/{kk.wilayahRt?.rw.nomor || kk.rw || "-"}
         </div>
         <div>
           <span className="inline-block w-32 font-semibold">Kabupaten/Kota</span>: {sistem?.kabupaten || "-"}
@@ -91,11 +95,11 @@ export default async function CetakKKPage({ params }: { params: { id: string } }
 
       <div className="flex justify-between text-xs mt-12 px-8">
         <div className="text-center">
-          <p>Ketua RT {kk.rt || "..."}</p>
+          <p>Ketua RT {rtNomor}</p>
           <div className="h-16 flex items-center justify-center">
-            {sistem?.ttdKetuaRt && <Image src={sistem.ttdKetuaRt} alt="Tanda tangan Ketua RT" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
+            {ttdKetuaRt && <Image src={ttdKetuaRt} alt="Tanda tangan Ketua RT" width={160} height={64} unoptimized loading="eager" className="max-h-16 max-w-40 object-contain" />}
           </div>
-          <p className="font-bold underline">{ketuaRt?.user.namaLengkap || "( ........................................ )"}</p>
+          <p className="font-bold underline">{ketuaRt || "( ........................................ )"}</p>
         </div>
         <div className="text-center">
           <p>Kepala Keluarga</p>

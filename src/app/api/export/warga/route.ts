@@ -1,26 +1,16 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-  }
+  const access = await requireStaff().catch(() => null);
+  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const wargaList = await prisma.warga.findMany({
+    where: wargaScopeWhere(access),
     include: { user: true, jenisPekerjaan: true },
     orderBy: { user: { namaLengkap: "asc" } },
   });

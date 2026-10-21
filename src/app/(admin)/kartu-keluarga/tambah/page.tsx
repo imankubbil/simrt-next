@@ -2,10 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { createKartuKeluarga } from "@/lib/actions/kartu-keluarga";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { requireStaff, wargaScopeWhere } from "@/lib/auth";
 
 export default async function TambahKKPage() {
+  const access = await requireStaff();
   const wargaTersedia = await prisma.warga.findMany({
-    where: { statusAktif: true, anggotaKK: null },
+    where: { ...wargaScopeWhere(access), statusAktif: true, anggotaKK: null },
     include: { user: true },
     orderBy: { user: { namaLengkap: "asc" } },
   }).catch(() => []);
@@ -49,15 +51,8 @@ export default async function TambahKKPage() {
             <p className="text-xs text-muted-foreground">Hanya warga aktif yang belum terdaftar di KK lain yang tampil.</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1 text-sm">
-              <label className="font-medium">RT</label>
-              <input name="rt" type="text" placeholder="003" className="w-full p-2 border rounded-md text-sm" />
-            </div>
-            <div className="space-y-1 text-sm">
-              <label className="font-medium">RW</label>
-              <input name="rw" type="text" placeholder="002" className="w-full p-2 border rounded-md text-sm" />
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <p className="self-center text-sm text-muted-foreground">RT dan RW mengikuti wilayah Kepala Keluarga yang dipilih.</p>
             <div className="space-y-1 text-sm">
               <label className="font-medium">Kode Pos</label>
               <input name="kodePos" type="text" placeholder="60123" className="w-full p-2 border rounded-md text-sm" />

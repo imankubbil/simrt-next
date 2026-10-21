@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { assignedRtId, requireAdmin, requireRtStaff, rtScopeWhere } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Berulang } from "@prisma/client";
@@ -21,7 +21,7 @@ export async function createJenisKegiatan(formData: FormData) {
 }
 
 export async function createKegiatan(formData: FormData) {
-  const session = await requireAdmin();
+  const access = await requireRtStaff();
   const judul = formData.get("judul") as string;
   const jenisId = formData.get("jenisId") as string;
   const deskripsi = (formData.get("deskripsi") as string) || null;
@@ -45,7 +45,8 @@ export async function createKegiatan(formData: FormData) {
       lokasi,
       berulang,
       catatanHasil,
-      createdById: session.user.id,
+      createdById: access.userId,
+      wilayahRtId: assignedRtId(access, formData.get("wilayahRtId")?.toString()),
     },
   });
 
@@ -54,7 +55,8 @@ export async function createKegiatan(formData: FormData) {
 }
 
 export async function deleteKegiatan(id: string) {
-  await requireAdmin();
-  await prisma.kegiatan.delete({ where: { id } });
+  const access = await requireRtStaff();
+  const result = await prisma.kegiatan.deleteMany({ where: { id, wilayahRt: { is: rtScopeWhere(access) } } });
+  if (!result.count) throw new Error("Kegiatan tidak ditemukan atau berada di luar wilayah tugas.");
   revalidatePath("/kegiatan");
 }

@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { Building2 } from "lucide-react";
 
 export default function LoginForm() {
-  const [loginSebagai, setLoginSebagai] = useState<"ADMIN" | "WARGA">("ADMIN");
+  const [loginSebagai, setLoginSebagai] = useState<"PENGURUS" | "WARGA">("PENGURUS");
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -51,7 +51,7 @@ export default function LoginForm() {
         </div>
 
         <div className="grid grid-cols-2 gap-2" aria-label="Jenis akun">
-          {(["ADMIN", "WARGA"] as const).map((role) => (
+          {(["PENGURUS", "WARGA"] as const).map((role) => (
             <button
               key={role}
               type="button"
@@ -65,7 +65,7 @@ export default function LoginForm() {
                 loginSebagai === role ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent"
               }`}
             >
-              {role === "ADMIN" ? "Pengurus" : "Warga"}
+              {role === "PENGURUS" ? "Pengurus" : "Warga"}
             </button>
           ))}
         </div>
@@ -108,7 +108,7 @@ export default function LoginForm() {
             disabled={loading}
             className="w-full bg-primary text-primary-foreground py-2 rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? "Memproses..." : `Masuk sebagai ${loginSebagai === "ADMIN" ? "Pengurus" : "Warga"}`}
+            {loading ? "Memproses..." : `Masuk sebagai ${loginSebagai === "PENGURUS" ? "Pengurus" : "Warga"}`}
           </button>
         </form>
       </div>

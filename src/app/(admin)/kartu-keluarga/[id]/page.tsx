@@ -2,13 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Printer, Edit } from "lucide-react";
-import { addAnggotaKeluarga, removeAnggotaKeluarga, deleteKartuKeluarga } from "@/lib/actions/kartu-keluarga";
+import { addAnggotaKeluarga, removeAnggotaKeluarga, deleteKartuKeluarga, pindahkanKartuKeluarga } from "@/lib/actions/kartu-keluarga";
 import { formatTanggal, hitungUsia } from "@/lib/utils";
+import { requireStaff, rtScopeWhere, wargaScopeWhere } from "@/lib/auth";
 
 export default async function DetailKKPage({ params }: { params: { id: string } }) {
-  const kk = await prisma.kartuKeluarga.findUnique({
-    where: { id: params.id },
+  const access = await requireStaff();
+  const kk = await prisma.kartuKeluarga.findFirst({
+    where: { id: params.id, wilayahRt: { is: rtScopeWhere(access) } },
     include: {
+      wilayahRt: { include: { rw: true } },
       anggota: {
         include: { warga: { include: { user: true, jenisPekerjaan: true } } },
         orderBy: { tanggalMasuk: "asc" },
@@ -19,10 +22,14 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
   if (!kk) notFound();
 
   const wargaTersedia = await prisma.warga.findMany({
-    where: { statusAktif: true, anggotaKK: null },
+    where: { ...wargaScopeWhere(access), statusAktif: true, anggotaKK: null },
     include: { user: true },
     orderBy: { user: { namaLengkap: "asc" } },
   }).catch(() => []);
+  const rtList = await prisma.wilayahRt.findMany({
+    include: { rw: true },
+    orderBy: [{ rw: { nomor: "asc" } }, { nomor: "asc" }],
+  });
 
   const kepala = kk.anggota.find((a) => a.hubungan === "KEPALA_KELUARGA");
   const deleteKKAction = deleteKartuKeluarga.bind(null, kk.id);
@@ -40,7 +47,7 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {access.role !== "PENGURUS_RW" && <div className="flex flex-wrap gap-2">
           <Link href={`/kartu-keluarga/${kk.id}/cetak`} target="_blank" className="px-3 py-2 border rounded-md text-sm font-medium hover:bg-accent flex items-center gap-2">
             <Printer className="w-4 h-4" /> Cetak KK
           </Link>
@@ -52,7 +59,7 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
               <Trash2 className="w-4 h-4" /> Hapus KK
             </button>
           </form>
-        </div>
+        </div>}
       </div>
 
       <div className="bg-card border rounded-lg p-6 space-y-4 shadow-sm text-sm">
@@ -63,7 +70,7 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
           </div>
           <div>
             <span className="text-muted-foreground text-xs block">RT / RW</span>
-            <span className="font-medium">{kk.rt || "-"} / {kk.rw || "-"}</span>
+            <span className="font-medium">{kk.wilayahRt ? `RT ${kk.wilayahRt.nomor} / RW ${kk.wilayahRt.rw.nomor}` : `${kk.rt || "-"} / ${kk.rw || "-"}`}</span>
           </div>
           <div>
             <span className="text-muted-foreground text-xs block">Kode Pos</span>
@@ -113,7 +120,7 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
                       </span>
                     </td>
                     <td className="p-3 text-right">
-                      {a.hubungan !== "KEPALA_KELUARGA" && (
+                      {access.role !== "PENGURUS_RW" && a.hubungan !== "KEPALA_KELUARGA" && (
                         <form action={removeAction} className="inline">
                           <button type="submit" className="p-1 text-red-600 hover:bg-red-50 rounded" title="Keluarkan dari KK">
                             <Trash2 className="w-3.5 h-3.5" />
@@ -129,7 +136,7 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
         </div>
       </div>
 
-      <div className="bg-card border rounded-lg p-5 space-y-4 shadow-sm">
+      {access.role !== "PENGURUS_RW" && <div className="bg-card border rounded-lg p-5 space-y-4 shadow-sm">
         <h3 className="font-semibold text-sm">Tambah Anggota Keluarga</h3>
         <form action={addAnggotaKeluarga} className="flex flex-col md:flex-row gap-3">
           <input type="hidden" name="kartuKeluargaId" value={kk.id} />
@@ -155,7 +162,31 @@ export default async function DetailKKPage({ params }: { params: { id: string } 
             <Plus className="w-4 h-4" /> Tambah
           </button>
         </form>
-      </div>
+      </div>}
+
+      {access.role !== "PENGURUS_RW" && <section className="border-t pt-6 space-y-3">
+        <h2 className="text-lg font-semibold">Pindah RT</h2>
+        <p className="text-sm text-muted-foreground">Pemindahan berlaku untuk seluruh anggota KK. Riwayat mutasi akan mencatat RT asal dan tujuan.</p>
+        <form action={pindahkanKartuKeluarga} className="grid grid-cols-1 gap-3 rounded-lg border bg-card p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <input type="hidden" name="kartuKeluargaId" value={kk.id} />
+          <div className="space-y-1 text-sm">
+            <label htmlFor="targetRtId" className="font-medium">RT tujuan</label>
+            <select id="targetRtId" name="targetRtId" className="w-full rounded-md border bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" required defaultValue="">
+              <option value="" disabled>-- Pilih RT tujuan --</option>
+              {rtList.filter((rt) => rt.id !== kk.wilayahRtId).map((rt) => (
+                <option key={rt.id} value={rt.id}>RT {rt.nomor} / RW {rt.rw.nomor}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1 text-sm">
+            <label htmlFor="tanggalPindah" className="font-medium">Tanggal pindah</label>
+            <input id="tanggalPindah" name="tanggal" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="w-full rounded-md border bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" required />
+          </div>
+          <button type="submit" className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            Pindahkan seluruh KK
+          </button>
+        </form>
+      </section>}
     </div>
   );
 }

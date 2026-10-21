@@ -17,6 +17,7 @@ import {
   LogOut,
   KeyRound,
 } from "lucide-react";
+import { Role } from "@prisma/client";
 
 const MENU = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -28,10 +29,16 @@ const MENU = [
   { label: "Kegiatan", href: "/kegiatan", icon: Calendar },
   { label: "Inventaris", href: "/inventaris", icon: Package },
   { label: "Laporan & Export", href: "/laporan", icon: FileSpreadsheet },
+  { label: "Wilayah & Pengurus", href: "/pengaturan/wilayah", icon: UserCheck },
   { label: "Pengaturan", href: "/pengaturan", icon: Settings },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ role }: { role: Exclude<Role, "WARGA"> }) {
+  const menu = MENU.filter((item) => {
+    if (role === "ADMIN") return true;
+    if (role === "PENGURUS_RW" && item.href === "/pengaturan/wilayah") return true;
+    return !item.href.startsWith("/pengaturan");
+  });
   return (
     <aside className="w-16 shrink-0 md:w-64 border-r bg-card min-h-screen p-2 md:p-4 flex flex-col justify-between overflow-y-auto">
       <div>
@@ -40,7 +47,7 @@ export function AdminSidebar() {
           <span className="hidden md:inline font-bold text-xl tracking-tight">SIM RT/RW</span>
         </div>
         <nav className="space-y-1">
-          {MENU.map((item) => {
+          {menu.map((item) => {
             const Icon = item.icon;
             return (
               <Link

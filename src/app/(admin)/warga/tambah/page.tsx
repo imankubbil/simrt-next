@@ -3,8 +3,15 @@ import { createWarga } from "@/lib/actions/warga";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import InitialPasswordFields from "./initial-password-fields";
+import { requireStaff, rtScopeWhere } from "@/lib/auth";
 
 export default async function TambahWargaPage() {
+  const access = await requireStaff();
+  const rtList = await prisma.wilayahRt.findMany({
+    where: rtScopeWhere(access),
+    include: { rw: true },
+    orderBy: [{ rw: { nomor: "asc" } }, { nomor: "asc" }],
+  });
   const pekerjaanList = await prisma.jenisPekerjaan.findMany({
     orderBy: { nama: "asc" },
   }).catch(() => []);
@@ -22,6 +29,13 @@ export default async function TambahWargaPage() {
       </div>
 
       <form action={createWarga} className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
+        <div className="space-y-1 text-sm">
+          <label className="font-medium">Wilayah RT <span className="text-red-500">*</span></label>
+          <select name="wilayahRtId" defaultValue={access.wilayahRtId || ""} className="w-full p-2 border rounded-md text-sm bg-background" required disabled={access.role === "PENGURUS_RT"}>
+            <option value="">-- Pilih RT --</option>
+            {rtList.map((rt) => <option key={rt.id} value={rt.id}>RT {rt.nomor} / RW {rt.rw.nomor}</option>)}
+          </select>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1 text-sm">
             <label className="font-medium">NIK <span className="text-red-500">*</span></label>

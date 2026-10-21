@@ -1,13 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { assertWargaInScope, requireRtStaff, rtScopeWhere } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { JenisMutasi } from "@prisma/client";
 
 export async function createMutasi(formData: FormData) {
-  const session = await requireAdmin();
+  const access = await requireRtStaff();
   const wargaId = formData.get("wargaId") as string;
   const jenisMutasi = formData.get("jenisMutasi") as JenisMutasi;
   const tanggalStr = formData.get("tanggal") as string;
@@ -20,11 +20,14 @@ export async function createMutasi(formData: FormData) {
   if (!wargaId || !jenisMutasi || !tanggalStr) {
     throw new Error("Warga, jenis mutasi, dan tanggal wajib diisi.");
   }
+  const warga = await assertWargaInScope(access, wargaId);
+  if (!warga.wilayahRtId) throw new Error("Warga belum memiliki RT.");
 
   await prisma.$transaction(async (tx) => {
     await tx.mutasiPenduduk.create({
       data: {
         wargaId,
+        wilayahRtId: warga.wilayahRtId,
         jenisMutasi,
         tanggal: new Date(tanggalStr),
         keterangan,
@@ -32,7 +35,7 @@ export async function createMutasi(formData: FormData) {
         alamatAsal,
         tempatMeninggal,
         penyebab,
-        createdById: session.user.id,
+        createdById: access.userId,
       },
     });
 
@@ -53,7 +56,8 @@ export async function createMutasi(formData: FormData) {
 }
 
 export async function deleteMutasi(id: string) {
-  await requireAdmin();
-  await prisma.mutasiPenduduk.delete({ where: { id } });
+  const access = await requireRtStaff();
+  const result = await prisma.mutasiPenduduk.deleteMany({ where: { id, wilayahRt: { is: rtScopeWhere(access) } } });
+  if (!result.count) throw new Error("Mutasi tidak ditemukan atau berada di luar wilayah tugas.");
   revalidatePath("/mutasi");
 }
